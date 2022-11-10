@@ -11,7 +11,7 @@ import math
 import scipy.stats as st
 from sklearn.preprocessing import MinMaxScaler
 
-# Yoo ben geldim :D 
+
 
 pd.set_option('display.width', None)
 pd.set_option('display.max_columns', None)
