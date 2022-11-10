@@ -199,8 +199,8 @@ target_summary_with_num(df, "HeartDisease", "SkinCancer")
 
 corr= df.corr()
 
-sns.set(rc={"figure.figsize": (9, 9)})
-sns.heatmap(corr, cmap="RdBu")
-plt.show(block=True)
-
+plt.figure(figsize=(18,18))
+cor = df_upsampled.corr()
+sns.heatmap(cor, annot=True, cmap=plt.cm.Reds, fmt='.2f')
+plt.show()
 
