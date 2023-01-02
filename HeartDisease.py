@@ -132,7 +132,7 @@ rare_analyser(df, "HeartDisease", cat_cols)
 def target_summary_with_num(dataframe, target, numarical_col):
     print(dataframe.groupby(target).agg({numarical_col:"mean"}))
 
-target_summary_with_num(df, "HeartDisease", cat_cols)
+target_summary_with_num(df, "HeartDisease", num_cols)
 
 corr= df.corr()
 
