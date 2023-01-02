@@ -22,44 +22,29 @@ pd.set_option('display.float_format', lambda x: '%.3f' % x)
 #seti inceleme/veriyi hazırlama
 df_ = pd.read_csv("new data sets/heart_2020_cleaned.csv")
 df=df_.copy()
-df.head()
-df.shape
-df.isnull().sum()
-df.describe().T
+
+def check_df(dataframe, head=5):
+    print("############Shape############")
+    print(dataframe.shape)
+    print("############Types############")
+    print(dataframe.dtypes)
+    print("############Tail############")
+    print(dataframe.tail(head))
+    print("############Head############")
+    print(dataframe.head(head))
+    print("############NA############")
+    print(dataframe.isnull().sum())
+    print("############Quantiles############")
+    print(dataframe.describe([0,0.05, 0.25, 0.50, 0.75, 0.95,0.99,1]).T)
+
+check_df(df)
 
 for i in df.columns:
     print(df[i].value_counts())
     print('***************************************\n')
 
 
-#Bir veri setindeki değişken verilerini düzenleyerek tiplerine göre liste oluşturma;
 def grab_col_names(dataframe, cat_th=10, car_th=20):
-    """
-    veri setindeki kategorik, numerik ve kategorik fakar kardinal değişkenlerin isimlerini verir.
-
-    Parameters
-    ----------
-    dataframe: dataframe
-        değişken isimleri alınmak istenen dataframedir
-    cat_th :int, float
-        numerik fakat kategorik olan değişkenler için sınıf eşik değeri
-    car_th: int, float
-        kategorik fakat kardinaldeğişkenler için sınıf eşik değeri
-
-    Returns
-    -------
-    cat_cols: list
-         kategorik değişken listesi
-    num_cols: list
-        numerik değişken listesi
-    cat_but_car: list
-        kategorik görünümlü kardinal değişken listesi
-
-    Notes
-    -------
-    cat_cols + num_cols+ cat_but_car = toplam değişken sayısı
-    num_but_cat cat_cols'un içinde
-    """
     cat_cols= [col for col in df.columns if str(df[col].dtypes) in ["category","object", "bool"]]
     num_but_cat=[col for col in df.columns if df[col].nunique()<10 and df[col].dtypes in ["int", "float"]]
     cat_but_car= [col for col in df.columns if
@@ -82,50 +67,26 @@ def grab_col_names(dataframe, cat_th=10, car_th=20):
 
 cat_cols, num_cols,cat_but_car,num_but_cat= grab_col_names(df)
 
-#yes/no değerleri integera çevirme
-change_values = {'No':0, 'Yes':1, 'No, borderline diabetes': 3,'Yes (during pregnancy)':4}
-for i in range(0, len(cat_cols)):
-    df[cat_cols[i]] = df[cat_cols[i]].replace(change_values)
+def check_outlier_graph(dataframe, col_name, plot= False):
+    low_limit, up_limit = outlier_thresholds(dataframe, col_name)
+    if dataframe[(dataframe[col_name] > up_limit) | (dataframe[col_name] < low_limit)].any(axis=None):
+        print(True)
+        if plot:
+            sns.boxplot(dataframe[col_name])
+            plt.show(block= True)
+            print(dataframe[col_name])
+            print("###########################################################")
+    else:
+        print(False)
+        print(dataframe[col_name])
+        print("###########################################################")
 
-df.head()
-df.dtypes
-df.describe()
+for col in num_cols:
+    check_outlier_graph(df, col, plot=True)
+for col in num_cols:
+    replace_with_thresholds(df, col)
+    
 
-#num_col listesini düzenleme
-num_cols = [col for col in df.columns if df[col].dtypes in ["int64", "float64"]]
-cat_cols = [col for col in df.columns if str(df[col].dtypes) in ["category", "object", "bool"]]
-
-
-#aykırı değer baskılama
-def outlier_thresholds(dataframe, variable):
-    quartile1 = dataframe[variable].quantile(0.25)
-    quartile2 = dataframe[variable].quantile(0.50)
-    quartile3 = dataframe[variable].quantile(0.75)
-    interquantile_range = quartile3 - quartile1
-    up_limit = quartile3 + 1.5 * interquantile_range
-    low_limit = quartile1 - 1.5 * interquantile_range
-    return low_limit, up_limit
-
-outlier_thresholds(df, "BMI")
-outlier_thresholds(df, "PhysicalHealth")
-outlier_thresholds(df, "MentalHealth")
-outlier_thresholds(df, "SleepTime")
-
-
-def replace_with_thresholds(dataframe, variable):
-    low_limit, up_limit = outlier_thresholds(dataframe, variable)
-    # dataframe.loc[(dataframe[variable] < low_limit), variable] = low_limit
-    dataframe.loc[(dataframe[variable] > up_limit), variable] = up_limit
-
-replace_with_thresholds(df, "BMI")
-replace_with_thresholds(df, "PhysicalHealth")
-replace_with_thresholds(df, "MentalHealth")
-replace_with_thresholds(df, "SleepTime")
-
-df.describe()
-
-
-#Veri setindeki numerik değişkenlerin çeyreklik dilimlerde grafik halinde incelenmesi;
 def num_summary(dataframe, numerical_col, plot= False):
     quantiles= [0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 0.99]
     dataframe[numerical_col].describe().T
@@ -141,8 +102,6 @@ for col in num_cols:
     num_summary(df, col, plot=True)
 
 
-
-#Veri setindeki kategorik değişkenlerin yüzdelik dilimlerde grafik halinde incelenmesi;
 def cat_summary(dataframe, col_name, plot=False):
     if dataframe[col_name].dtypes == "bool":\
         dataframe[col_name] =dataframe[col_name].astype(int)
@@ -161,41 +120,19 @@ for col in cat_cols:
     cat_summary(df, col, plot=True)
 
 
-#Bir değişkenin o veri seti içerisindeki diğer kategorik değişkenlerle çaprazlama incelenmesi;
-cat_cols
-def target_summary_with_cat(dataframe, target, categorical_col):
-    print(pd.DataFrame({"TARGET_MEAN": dataframe.groupby(categorical_col)[target].mean()}))
+def rare_analyser(dataframe, target, cat_cols):
+    for col in cat_cols:
+        print(col, ":", len(dataframe[col].value_counts()))
+        print(pd.DataFrame({"COUNT": dataframe[col].value_counts(),
+                            "RATIO": dataframe[col].value_counts() / len(dataframe),
+                            "TARGET_MEAN": dataframe.groupby(col)[target].mean()}), end="\n\n\n")
 
-target_summary_with_cat(df, "HeartDisease", "Sex")
-target_summary_with_cat(df, "HeartDisease", "AgeCategory")
-target_summary_with_cat(df, "HeartDisease", "Race")
-target_summary_with_cat(df, "HeartDisease", "GenHealth")
-
-
-
-df.head()
-
-#Bir değişkenin o veri seti içerisindeki diğer numerik değişkenlerle çaprazlama incelenmesi;
+rare_analyser(df, "HeartDisease", cat_cols)
 
 def target_summary_with_num(dataframe, target, numarical_col):
     print(dataframe.groupby(target).agg({numarical_col:"mean"}))
 
-target_summary_with_num(df, "HeartDisease", "Smoking")
-target_summary_with_num(df, "HeartDisease", "AlcoholDrinking")    #a/b sonucuna göre değerlendirme yap
-target_summary_with_num(df, "HeartDisease", "Stroke")
-target_summary_with_num(df, "HeartDisease", "DiffWalking")
-target_summary_with_num(df, "HeartDisease", "Diabetic")
-target_summary_with_num(df, "HeartDisease", "PhysicalActivity")
-target_summary_with_num(df, "HeartDisease", "PhysicalHealth")
-target_summary_with_num(df, "HeartDisease", "MentalHealth")
-target_summary_with_num(df, "HeartDisease", "SleepTime")
-target_summary_with_num(df, "HeartDisease", "BMI")
-target_summary_with_num(df, "HeartDisease", "Asthma")
-target_summary_with_num(df, "HeartDisease", "KidneyDisease")
-target_summary_with_num(df, "HeartDisease", "SkinCancer")
-
-
-#korelasyon
+target_summary_with_num(df, "HeartDisease", cat_cols)
 
 corr= df.corr()
 
@@ -204,3 +141,66 @@ cor = df_upsampled.corr()
 sns.heatmap(cor, annot=True, cmap=plt.cm.Reds, fmt='.2f')
 plt.show()
 
+
+df.loc[(df['AgeCategory'] <= "30-34"), 'age_cat'] = 'young'
+df.loc[(df['AgeCategory'] >= "35-39") & (df['AgeCategory'] <= "45-49") , 'age_cat'] = 'mature'
+df.loc[(df['AgeCategory'] >= "50-54") & (df['AgeCategory']  <= "60-64"), 'age_cat'] = 'senior'
+df.loc[(df['AgeCategory'] >= "65-69") &  (df['AgeCategory'] <= "75-79"), 'age_cat'] = 'old'
+df.loc[(df['AgeCategory'] == "80 or older"), 'age_cat'] = 'veryold'
+
+def label_encoder(dataframe, binary_col):
+    labelencoder = LabelEncoder()
+    dataframe[binary_col] = labelencoder.fit_transform(dataframe[binary_col])
+    return dataframe
+
+binary_cols = [col for col in df.columns if df[col].dtype not in [int, float]
+               and df[col].nunique() == 2]
+
+for col in binary_cols:
+    label_encoder(df, col)
+    
+    
+def one_hot_encoder(dataframe, categorical_cols, drop_first=True):
+    dataframe = pd.get_dummies(dataframe, columns=categorical_cols, drop_first=drop_first)
+    return dataframe
+
+ohe_cols = [col for col in df.columns if 13 > df[col].nunique() > 2]
+
+df=one_hot_encoder(df, ohe_cols)
+
+cat_cols, num_cols,cat_but_car,num_but_cat= grab_col_names(df)
+
+
+mms = MinMaxScaler()
+df["BMI_min_max"] = mms.fit_transform(df[["BMI"]])
+df["Physical_min_max"] = mms.fit_transform(df[["PhysicalHealth"]])
+df["Mental_min_max"] = mms.fit_transform(df[["MentalHealth"]])
+
+
+from sklearn.ensemble import RandomForestClassifier
+
+y = df["HeartDisease"]
+X = df.drop(["HeartDisease", "AgeCategory", "BMI", "MentalHealth", "PhysicalHealth"], axis=1)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=17)
+
+rf_model = RandomForestClassifier(random_state=46).fit(X_train, y_train)
+y_pred = rf_model.predict(X_test)
+accuracy_score(y_pred, y_test)
+
+
+
+def plot_importance(model, features, num=len(X), save=False):
+    feature_imp = pd.DataFrame({'Value': model.feature_importances_, 'Feature': features.columns})
+    plt.figure(figsize=(18, 18))
+    sns.set(font_scale=1)
+    sns.barplot(x="Value", y="Feature", data=feature_imp.sort_values(by="Value",
+                                                                      ascending=False)[0:num])
+    plt.title('Features')
+    plt.tight_layout()
+    plt.show()
+    if save:
+        plt.savefig('importances.png')
+
+
+plot_importance(rf_model, X_train)
